@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EA Dashboard Project</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .upload-container {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        
+        .dark .upload-container {
+            border-color: #475569;
+        }
+
+        .upload-container:hover, .upload-container.dragover {
+            border-color: #14b8a6;
+            background-color: rgba(20, 184, 166, 0.05);
+        }
+
+        .dashboard-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Custom scrollbars for the table */
+        .table-container::-webkit-scrollbar { height: 8px; width: 8px; }
+        .table-container::-webkit-scrollbar-track { background: transparent; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark .table-container::-webkit-scrollbar-thumb { background: #475569; }
+        .dark .table-container::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-[#f9fafb] text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col font-sans">
+
+    <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20">
+        <div class="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-lg bg-brand-500 text-white flex items-center justify-center mr-3 shadow-sm">
+                        <i class="fa-solid fa-rocket"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white truncate tracking-tight">EA Dashboard Project</h1>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <!-- Global re-upload button embedded in header -->
+                    <label id="headerUploadLabel" class="hidden cursor-pointer inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                        <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Upload New File
+                        <input type="file" id="headerFileInput" accept=".xlsx, .xls, .csv" class="hidden" />
+                    </label>
+
+                    <button id="themeToggle" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title="Toggle Light/Dark Theme">
+                        <svg id="sunIcon" class="w-5 h-5 hidden dark:block text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.22 3.22a1 1 0 011.415 0l.884.884a1 1 0 01-1.414 1.415l-.884-.884a1 1 0 010-1.415zM1 10a1 1 0 011-1h1a1 1 0 110 2H2a1 1 0 01-1-1zm15 0a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1zm-4.22 4.22a1 1 0 011.415 0l.884.884a1 1 0 01-1.414 1.415l-.884-.884a1 1 0 010-1.415zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-4.22-3.22a1 1 0 010-1.415l-.884-.884a1 1 0 011.414-1.415l.884.884a1 1 0 01-1.415 1.415zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+                        </svg>
+                        <svg id="moonIcon" class="w-5 h-5 block dark:hidden text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-[95%] w-full mx-auto px-4 py-8 flex flex-col gap-6">
+        
+        <!-- Upload Section -->
+        <section id="uploadSection" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center text-center transition-all duration-500 ease-in-out min-h-[60vh]">
+            <div class="bg-brand-50 dark:bg-brand-900/30 w-20 h-20 rounded-full flex items-center justify-center mb-6">
+                <i class="fa-solid fa-chart-pie text-3xl text-brand-500"></i>
+            </div>
+            <h2 class="text-3xl font-bold mb-3 text-gray-900 dark:text-white">Welcome to your EA Dashboard</h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-8 max-w-2xl text-lg">Please upload your <span class="font-mono bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-brand-600 dark:text-brand-400 text-sm">dashboard project.xlsx</span> file to generate the dashboard overview and detailed tracking table.</p>
+            
+            <div id="dropZone" class="upload-container w-full max-w-2xl rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer relative bg-gray-50 dark:bg-gray-800/50">
+                <input type="file" id="mainFileInput" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                <i class="fa-solid fa-cloud-arrow-up text-5xl text-gray-400 mb-4 group-hover:text-brand-500 transition-colors"></i>
+                <p class="text-xl font-medium text-gray-700 dark:text-gray-300">Click to upload or drag and drop</p>
+                <p class="text-sm text-gray-500 mt-2">XLSX, XLS, CSV format supported</p>
+            </div>
+            
+            <div id="loadingIndicator" class="hidden mt-8 flex flex-col items-center">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div>
+                <p class="text-sm mt-3 font-medium text-gray-600 dark:text-gray-400">Processing dashboard data...</p>
+            </div>
+            
+            <div id="errorMessage" class="hidden mt-6 text-red-600 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-6 py-3 rounded-lg border border-red-200 dark:border-red-800"></div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboardSection" class="hidden flex-col gap-6 opacity-0 transition-opacity duration-700 ease-in-out">
+            
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Task Overview</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Sourced from: <span id="fileNameDisplay" class="font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded ml-1"></span></p>
+                </div>
+            </div>
+
+            <!-- KPI Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex items-center">
+                    <div class="p-3.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 mr-4">
+                        <i class="fa-solid fa-list-check text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Tasks</p>
+                        <p id="totalCount" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex items-center">
+                    <div class="p-3.5 rounded-full bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 mr-4">
+                        <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Blocked</p>
+                        <p id="blockedCount" class="text-2xl font-bold text-gray-900 dark:text-white truncate">0</p>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex items-center">
+                    <div class="p-3.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 mr-4">
+                        <i class="fa-solid fa-chart-line text-xl"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Most Frequent Status</p>
+                        <p id="mostFrequentStatus" class="text-xl font-bold text-gray-900 dark:text-white truncate">-</p>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex items-center">
+                    <div class="p-3.5 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 mr-4">
+                        <i class="fa-regular fa-clock text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Last Updated</p>
+                        <p id="lastUpdatedTime" class="text-lg font-bold text-gray-900 dark:text-white">Just now</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table (Replicating Template) -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+                <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/80 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-white"><i class="fa-solid fa-table-list text-gray-400 mr-2"></i>Task Log</h3>
+                    <span class="text-xs font-semibold bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded text-gray-700 dark:text-gray-300 shadow-sm" id="tableRecordCount">0 Records</span>
+                </div>
+                <div class="overflow-x-auto table-container flex-grow max-h-[600px] relative">
+                    <table class="min-w-full text-left text-sm whitespace-nowrap">
+                        <thead class="uppercase text-xs tracking-wider font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium">Workstream</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium w-1/4">Task</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium">Owner</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium">Status</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium">Priority</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium">Due Date</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium">Escalation</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium w-1/5">Blocker</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium w-1/5">Next Step</th>
+                                <th scope="col" class="px-4 py-4 border-b border-gray-200 dark:border-gray-700 font-medium w-1/5">Latest Update</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailedTableBody" class="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-800">
+                            <!-- Table rows injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Summary Section -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 dashboard-card">
+                <div class="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-3">
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Summary</h3>
+                </div>
+                <div class="prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-300 flex-grow overflow-y-auto pr-2 no-scrollbar" id="summaryText">
+                    <!-- Summary injected via JS -->
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-medium px-6 py-3 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center border border-gray-800 dark:border-gray-200">
+        <i class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-500 mr-3 text-lg"></i>
+        <span id="toastMsg">Action successful</span>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Elements ---
+            const themeToggle = document.getElementById('themeToggle');
+            const htmlClassList = document.documentElement.classList;
+            
+            const mainFileInput = document.getElementById('mainFileInput');
+            const headerFileInput = document.getElementById('headerFileInput');
+            const headerUploadLabel = document.getElementById('headerUploadLabel');
+            
+            const dropZone = document.getElementById('dropZone');
+            const uploadSection = document.getElementById('uploadSection');
+            const dashboardSection = document.getElementById('dashboardSection');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            
+            let appData = {
+                raw: [],
+                statusCounts: {},
+                totalRecords: 0,
+                blockedCount: 0
+            };
+
+            // --- Theme Management ---
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                htmlClassList.add('dark');
+            } else {
+                htmlClassList.remove('dark');
+            }
+
+            themeToggle.addEventListener('click', () => {
+                htmlClassList.toggle('dark');
+                const isDark = htmlClassList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+
+            // --- Utility Functions ---
+            const showToast = (message) => {
+                toastMsg.textContent = message;
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+            };
+
+            const showError = (msg) => {
+                errorMessage.textContent = msg;
+                errorMessage.classList.remove('hidden');
+                loadingIndicator.classList.add('hidden');
+            };
+
+            const hideError = () => errorMessage.classList.add('hidden');
+
+            const getVal = (row, ...keys) => {
+                for (let key of keys) {
+                    if (row[key] !== undefined) return String(row[key]).trim();
+                }
+                return '-';
+            };
+
+            // Styling function replicated and enhanced from template
+            const getStyle = (type, value) => {
+                const val = (value || '').toLowerCase().trim();
+                if (type === 'workstream') {
+                    if (val.includes('zurp')) return 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
+                    if (val.includes('after ours')) return 'bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800';
+                    if (val.includes('marketing')) return 'bg-pink-100 text-pink-800 border border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800';
+                    return 'bg-gray-100 text-gray-800 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
+                }
+                if (type === 'status') {
+                    if (val.includes('blocked') || val.includes('urgent')) return 'bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
+                    if (val.includes('delayed')) return 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800';
+                    if (val.includes('on track')) return 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800';
+                    if (val.includes('complete') || val.includes('done')) return 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800';
+                    return 'bg-gray-100 text-gray-800 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
+                }
+                if (type === 'priority') {
+                    if (val === 'urgent') return 'text-red-600 font-bold dark:text-red-400';
+                    if (val === 'high') return 'text-amber-600 font-semibold dark:text-amber-400';
+                    if (val === 'medium') return 'text-blue-600 font-medium dark:text-blue-400';
+                    return 'text-gray-500 dark:text-gray-400';
+                }
+                if (type === 'escalation') {
+                    if (val === 'yes') return 'bg-red-500 text-white border border-red-600 shadow-sm dark:border-red-400';
+                    return 'bg-gray-200 text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
+                }
+                return '';
+            };
+
+            // --- Event Listeners for Uploading ---
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => dropZone.classList.add('dragover', 'border-brand-500'));
+            ['dragleave', 'drop'].forEach(eventName => dropZone.classList.remove('dragover', 'border-brand-500'));
+
+            dropZone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+            mainFileInput.addEventListener('change', e => handleFiles(e.target.files));
+            headerFileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+            function handleFiles(files) {
+                if (files.length === 0) return;
+                const file = files[0];
+                if (!['.xlsx', '.xls', '.csv'].includes(file.name.substring(file.name.lastIndexOf('.')).toLowerCase())) {
+                    showError("Invalid file type. Please upload Excel (.xlsx/.xls) or CSV.");
+                    return;
+                }
+
+                hideError();
+                loadingIndicator.classList.remove('hidden');
+                fileNameDisplay.textContent = file.name;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        processData(jsonData);
+                    } catch (error) {
+                        showError("Error reading the file. Ensure it is valid.");
+                        loadingIndicator.classList.add('hidden');
+                    }
+                };
+                reader.onerror = () => { showError("File read error."); loadingIndicator.classList.add('hidden'); };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function processData(data) {
+                if (!data || data.length === 0) {
+                    showError("The uploaded file appears to be empty.");
+                    loadingIndicator.classList.add('hidden');
+                    return;
+                }
+
+                appData.raw = data;
+                appData.totalRecords = data.length;
+                
+                let counts = {};
+                let blocked = 0;
+                
+                data.forEach(row => {
+                    let st = getVal(row, 'Status', 'status');
+                    if (st === '-') st = 'Uncategorized';
+                    counts[st] = (counts[st] || 0) + 1;
+                    if (st.toLowerCase().includes('block')) blocked++;
+                });
+
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                
+                appData.statusCounts = {
+                    labels: sorted.map(i => i[0]),
+                    values: sorted.map(i => i[1])
+                };
+                appData.blockedCount = blocked;
+
+                renderDashboard();
+            }
+
+            function renderDashboard() {
+                loadingIndicator.classList.add('hidden');
+
+                // KPIs
+                document.getElementById('totalCount').textContent = appData.totalRecords;
+                document.getElementById('blockedCount').textContent = appData.blockedCount;
+                document.getElementById('mostFrequentStatus').textContent = appData.statusCounts.labels[0] || 'N/A';
+                document.getElementById('lastUpdatedTime').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('tableRecordCount').textContent = `${appData.totalRecords} Records`;
+
+                buildSummary();
+                buildDetailedTable();
+
+                // Swap views
+                uploadSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                headerUploadLabel.classList.remove('hidden');
+                setTimeout(() => dashboardSection.style.opacity = '1', 50);
+            }
+
+            function buildSummary() {
+                const container = document.getElementById('summaryText');
+                const s = appData.statusCounts;
+                
+                let html = `<ul class="list-disc pl-5 space-y-1 mb-4">`;
+                for(let i = 0; i < s.labels.length; i++) {
+                    const isBlocked = s.labels[i].toLowerCase().includes('block');
+                    const textStyle = isBlocked ? 'text-red-600 dark:text-red-400 font-bold' : '';
+                    html += `<li class="${textStyle}"><strong>${s.labels[i]}:</strong> ${s.values[i]} items</li>`;
+                }
+                html += `</ul><p class="text-xs text-gray-400 dark:text-gray-500">Report generated dynamically on ${new Date().toLocaleDateString()}.</p>`;
+                
+                container.innerHTML = html;
+            }
+
+            function buildDetailedTable() {
+                const tbody = document.getElementById('detailedTableBody');
+                tbody.innerHTML = '';
+
+                appData.raw.forEach((row, i) => {
+                    const ws = getVal(row, 'Workstream', 'workstream');
+                    const task = getVal(row, 'Task', 'task');
+                    let owner = getVal(row, 'Owner', 'owner');
+                    if(owner === '-') owner = 'Unassigned';
+                    const initials = owner !== 'Unassigned' ? owner.substring(0, 2).toUpperCase() : '?';
+                    
+                    const status = getVal(row, 'Status', 'status');
+                    const priority = getVal(row, 'Priority', 'priority');
+                    const dueDate = getVal(row, 'Due Date', 'dueDate');
+                    const escalation = getVal(row, 'Escalation', 'escalation');
+                    const blocker = getVal(row, 'Blocker', 'blocker');
+                    const nextStep = getVal(row, 'Next Step', 'nextStep');
+                    const update = getVal(row, 'Latest Update', 'update');
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group';
+                    
+                    tr.innerHTML = `
+                        <td class="px-4 py-4 align-top">
+                            <span class="${getStyle('workstream', ws)} px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap">${ws}</span>
+                        </td>
+                        <td class="px-4 py-4 font-medium text-gray-900 dark:text-gray-100 whitespace-normal align-top leading-relaxed min-w-[200px]">
+                            ${task}
+                        </td>
+                        <td class="px-4 py-4 align-top">
+                            <div class="flex items-center">
+                                <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center text-xs mr-2.5 font-bold shadow-sm">${initials}</div>
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${owner}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-4 align-top">
+                            <span class="${getStyle('status', status)} px-2.5 py-1 rounded-md text-xs font-bold whitespace-nowrap inline-flex items-center">
+                                ${status.toLowerCase() === 'blocked' ? '<i class="fa-solid fa-ban mr-1.5 opacity-75"></i>' : ''}
+                                ${status.toLowerCase() === 'on track' ? '<i class="fa-solid fa-check mr-1.5 opacity-75"></i>' : ''}
+                                ${status}
+                            </span>
+                        </td>
+                        <td class="px-4 py-4 align-top">
+                            <span class="${getStyle('priority', priority)} flex items-center text-sm capitalize">
+                                ${priority.toLowerCase() === 'urgent' ? '<i class="fa-solid fa-fire mr-1.5"></i>' : ''}
+                                ${priority}
+                            </span>
+                        </td>
+                        <td class="px-4 py-4 text-gray-800 dark:text-gray-300 text-sm align-top whitespace-nowrap font-medium">${dueDate}</td>
+                        <td class="px-4 py-4 align-top">
+                            <span class="${getStyle('escalation', escalation)} px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider">${escalation}</span>
+                        </td>
+                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400 text-sm whitespace-normal align-top leading-relaxed min-w-[200px]">
+                            ${blocker !== '-' ? blocker : '<span class="text-gray-300 dark:text-gray-600 italic">None</span>'}
+                        </td>
+                        <td class="px-4 py-4 text-gray-800 dark:text-gray-200 text-sm whitespace-normal align-top leading-relaxed min-w-[200px] font-medium">
+                            ${nextStep}
+                        </td>
+                        <td class="px-4 py-4 text-gray-500 dark:text-gray-400 text-xs whitespace-normal align-top leading-relaxed min-w-[200px] bg-gray-50/50 dark:bg-gray-800/30 group-hover:bg-transparent transition-colors rounded-r-lg">
+                            ${update}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
